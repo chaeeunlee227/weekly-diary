@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WeekSelector } from './components/WeekSelector';
 import { ComponentToggle } from './components/ComponentToggle';
 import { HabitTracker } from './components/HabitTracker';
@@ -7,6 +7,8 @@ import { MealTracker } from './components/MealTracker';
 import { MainEvents } from './components/MainEvents';
 import { GratefulThings } from './components/GratefulThings';
 import { CommentOfWeek } from './components/CommentOfWeek';
+import { Auth } from './components/Auth';
+import { auth } from './lib/supabase';
 
 export interface WeekData {
   habits: {
@@ -46,6 +48,8 @@ const INITIAL_WEEK_DATA: WeekData = {
 export default function App() {
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
   const [weekData, setWeekData] = useState<{ [weekKey: string]: WeekData }>({});
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
   const [visibleComponents, setVisibleComponents] = useState({
     habits: true,
@@ -55,6 +59,28 @@ export default function App() {
     grateful: true,
     comment: true
   });
+
+  // Check authentication status
+  useEffect(() => {
+    async function checkUser() {
+      try {
+        const currentUser = await auth.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Error checking user:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkUser();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const getWeekKey = (date: Date) => {
     const weekStart = getWeekStart(date);
@@ -88,6 +114,22 @@ export default function App() {
     }));
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-lg text-gray-600">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth page if not logged in
+  if (!user) {
+    return <Auth />;
+  }
+
   const data = getCurrentWeekData();
 
   return (
@@ -96,7 +138,18 @@ export default function App() {
         {/* Header */}
         <div className="bg-white border-b sticky top-0 z-10">
           <div className="px-4 py-4">
-            <h1 className="text-center mb-3">Weekly Diary</h1>
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-center flex-1">Weekly Diary</h1>
+              <button
+                onClick={async () => {
+                  await auth.signOut();
+                  setUser(null);
+                }}
+                className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+              >
+                Sign Out
+              </button>
+            </div>
             <WeekSelector 
               currentWeek={currentWeek} 
               onWeekChange={setCurrentWeek}
