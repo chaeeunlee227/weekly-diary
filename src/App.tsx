@@ -138,14 +138,14 @@ export default function App() {
         {/* Header */}
         <div className="bg-white border-b sticky top-0 z-10">
           <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-center flex-1">Weekly Diary</h1>
+            <div className="relative flex items-center justify-center mb-3">
+              <h1 className="text-center">Weekly Diary</h1>
               <button
                 onClick={async () => {
                   await auth.signOut();
                   setUser(null);
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+                className="absolute right-0 text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
               >
                 Sign Out
               </button>
