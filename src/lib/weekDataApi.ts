@@ -20,11 +20,18 @@ export async function getWeekData(userId: string, weekStart: string): Promise<We
   }
 
   // Transform database format to app format
+  const events = (data.events as any) || [];
+  // Convert date strings back to Date objects
+  const eventsWithDates = events.map((event: any) => ({
+    ...event,
+    date: event.date ? new Date(event.date) : new Date()
+  }));
+
   return {
     habits: (data.habits as any) || { trackers: [], completed: {} },
     moods: data.moods || [0, 0, 0, 0, 0, 0, 0],
     meals: (data.meals as any) || {},
-    events: (data.events as any) || [],
+    events: eventsWithDates,
     grateful: data.grateful || '',
     comment: data.comment || '',
   };

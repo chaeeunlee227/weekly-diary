@@ -128,25 +128,23 @@ export default function App() {
     async function loadWeekData() {
       try {
         const data = await getWeekData(user.id, weekKey);
+        // Deep clone to ensure proper comparison later
+        const dataToSave = data ? JSON.parse(JSON.stringify(data)) : JSON.parse(JSON.stringify(INITIAL_WEEK_DATA));
+        
+        setWeekData(prev => ({ ...prev, [weekKey]: dataToSave }));
+        setSavedData(prev => ({ ...prev, [weekKey]: JSON.parse(JSON.stringify(dataToSave)) }));
+        setHasUnsavedChanges(false);
         if (data) {
-          setWeekData(prev => ({ ...prev, [weekKey]: data }));
-          setSavedData(prev => ({ ...prev, [weekKey]: data }));
-          setHasUnsavedChanges(false);
           setLastSaved(new Date());
-        } else {
-          // Week doesn't exist yet, initialize with empty data
-          const initialData = INITIAL_WEEK_DATA;
-          setWeekData(prev => ({ ...prev, [weekKey]: initialData }));
-          setSavedData(prev => ({ ...prev, [weekKey]: initialData }));
-          setHasUnsavedChanges(false);
         }
       } catch (error) {
         console.error('Error loading week data:', error);
         // Fallback to local state if database fails
         const key = getWeekKey(currentWeek);
         if (!weekData[key]) {
-          setWeekData(prev => ({ ...prev, [key]: INITIAL_WEEK_DATA }));
-          setSavedData(prev => ({ ...prev, [key]: INITIAL_WEEK_DATA }));
+          const initialData = JSON.parse(JSON.stringify(INITIAL_WEEK_DATA));
+          setWeekData(prev => ({ ...prev, [key]: initialData }));
+          setSavedData(prev => ({ ...prev, [key]: JSON.parse(JSON.stringify(initialData)) }));
         }
       }
     }
@@ -162,18 +160,44 @@ export default function App() {
     const currentData = weekData[weekKey];
     const saved = savedData[weekKey];
 
-    if (!currentData || !saved) {
+    // If we don't have current data yet, no changes
+    if (!currentData) {
       setHasUnsavedChanges(false);
       return;
     }
 
+    // If we have current data but no saved data yet, initialize saved data to match
+    if (!saved) {
+      setSavedData(prev => ({ ...prev, [weekKey]: JSON.parse(JSON.stringify(currentData)) }));
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    // Normalize data for comparison (handle Date objects in events)
+    const normalizeForComparison = (data: WeekData) => {
+      const normalized = JSON.parse(JSON.stringify(data));
+      // Ensure dates are strings for comparison
+      if (normalized.events) {
+        normalized.events = normalized.events.map((e: any) => ({
+          ...e,
+          date: e.date instanceof Date ? e.date.toISOString() : (typeof e.date === 'string' ? e.date : new Date(e.date).toISOString())
+        }));
+      }
+      return normalized;
+    };
+
     // Compare current data with saved data
-    const hasChanges = JSON.stringify(currentData) !== JSON.stringify(saved);
+    const currentNormalized = normalizeForComparison(currentData);
+    const savedNormalized = normalizeForComparison(saved);
+    const hasChanges = JSON.stringify(currentNormalized) !== JSON.stringify(savedNormalized);
+    
     setHasUnsavedChanges(hasChanges);
     
     // Store pending data for auto-save on critical events
     if (hasChanges) {
       pendingSaveRef.current = currentData;
+    } else {
+      pendingSaveRef.current = null;
     }
   }, [weekData, savedData, currentWeek, user]);
 
@@ -278,15 +302,26 @@ export default function App() {
           <div className="px-4 py-4">
             <div className="relative flex items-center justify-center mb-3">
               <h1 className="text-center">Weekly Diary</h1>
-              <button
-                onClick={async () => {
-                  await auth.signOut();
-                  setUser(null);
-                }}
-                className="absolute right-0 text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-              >
-                Sign Out
-              </button>
+              <div className="absolute right-0 flex items-center gap-2">
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || !hasUnsavedChanges}
+                  size="sm"
+                  variant={hasUnsavedChanges ? "default" : "ghost"}
+                  className={hasUnsavedChanges ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+                <button
+                  onClick={async () => {
+                    await auth.signOut();
+                    setUser(null);
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
             <WeekSelector 
               currentWeek={currentWeek} 
