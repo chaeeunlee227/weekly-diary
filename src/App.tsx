@@ -8,7 +8,7 @@ import { MainEvents } from './components/MainEvents';
 import { GratefulThings } from './components/GratefulThings';
 import { CommentOfWeek } from './components/CommentOfWeek';
 import { Auth } from './components/Auth';
-import { auth } from './lib/supabase';
+import { auth, supabase } from './lib/supabase';
 
 export interface WeekData {
   habits: {
@@ -60,12 +60,27 @@ export default function App() {
     comment: true
   });
 
-  // Check authentication status
+  // Check authentication status and handle OAuth callback
   useEffect(() => {
     async function checkUser() {
       try {
-        const currentUser = await auth.getCurrentUser();
-        setUser(currentUser);
+        // Handle OAuth callback - check if there's a session in the URL hash
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setUser(session.user);
+            // Clean up URL hash after successful OAuth
+            if (window.location.hash) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          } else {
+            const currentUser = await auth.getCurrentUser();
+            setUser(currentUser);
+          }
+        } else {
+          const currentUser = await auth.getCurrentUser();
+          setUser(currentUser);
+        }
       } catch (error) {
         console.error('Error checking user:', error);
       } finally {
@@ -77,6 +92,10 @@ export default function App() {
     // Listen for auth state changes
     const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      // Clean up URL hash after auth state change
+      if (session && window.location.hash) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     });
 
     return () => subscription.unsubscribe();

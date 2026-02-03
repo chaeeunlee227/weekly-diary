@@ -36,6 +36,19 @@ export const auth = {
     return { data, error };
   },
 
+  async signInWithOAuth(provider: 'google' | 'github' | 'discord' | 'facebook' | 'twitter') {
+    if (!supabase) {
+      return { data: null, error: { message: 'Supabase is not configured.' } };
+    }
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    return { data, error };
+  },
+
   async signOut() {
     if (!supabase) {
       return { error: { message: 'Supabase is not configured.' } };
