@@ -216,7 +216,6 @@ export default function App() {
     setHasUnsavedChanges(hasChanges);
     
     // Store pending data for auto-save on critical events
-    const weekKey = getWeekKey(currentWeek);
     if (hasChanges) {
       pendingSaveRef.current = currentData;
       // Store for week change auto-save (only if this is the current week)
