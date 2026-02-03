@@ -60,6 +60,8 @@ export default function App() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const pendingSaveRef = useRef<WeekData | null>(null);
+  const previousWeekKeyRef = useRef<string | null>(null);
+  const previousWeekDataRef = useRef<WeekData | null>(null);
   
   const [visibleComponents, setVisibleComponents] = useState({
     habits: true,
@@ -118,6 +120,26 @@ export default function App() {
     const diff = d.getDate() - day;
     return new Date(d.setDate(diff));
   };
+
+  // Track previous week key for auto-save
+  useEffect(() => {
+    const weekKey = getWeekKey(currentWeek);
+    const previousWeekKey = previousWeekKeyRef.current;
+    
+    // If week changed and we have previous week data to save
+    if (previousWeekKey !== null && previousWeekKey !== weekKey && previousWeekDataRef.current && user) {
+      // Save previous week's data before loading new week
+      const previousData = previousWeekDataRef.current;
+      saveWeekData(user.id, previousWeekKey, previousData).catch(err => {
+        console.error('Auto-save on week change failed:', err);
+      });
+      // Clear the previous week data after saving
+      previousWeekDataRef.current = null;
+    }
+    
+    // Update the previous week key reference
+    previousWeekKeyRef.current = weekKey;
+  }, [currentWeek, user]);
 
   // Load data from database when week changes or user is available
   useEffect(() => {
@@ -194,26 +216,21 @@ export default function App() {
     setHasUnsavedChanges(hasChanges);
     
     // Store pending data for auto-save on critical events
+    const weekKey = getWeekKey(currentWeek);
     if (hasChanges) {
       pendingSaveRef.current = currentData;
+      // Store for week change auto-save (only if this is the current week)
+      if (previousWeekKeyRef.current === weekKey) {
+        previousWeekDataRef.current = currentData;
+      }
     } else {
       pendingSaveRef.current = null;
+      // Clear previous week data if no changes and this is the current week
+      if (previousWeekKeyRef.current === weekKey) {
+        previousWeekDataRef.current = null;
+      }
     }
   }, [weekData, savedData, currentWeek, user]);
-
-  // Auto-save when switching weeks (if there are unsaved changes)
-  useEffect(() => {
-    return () => {
-      // This cleanup runs when currentWeek changes or component unmounts
-      if (pendingSaveRef.current && user) {
-        const previousWeekKey = getWeekKey(currentWeek);
-        // Save in the background (fire and forget)
-        saveWeekData(user.id, previousWeekKey, pendingSaveRef.current).catch(err => {
-          console.error('Auto-save on week change failed:', err);
-        });
-      }
-    };
-  }, [currentWeek, user]);
 
   // Auto-save on page unload (beforeunload)
   useEffect(() => {
@@ -238,10 +255,17 @@ export default function App() {
 
   const updateWeekData = (updater: (data: WeekData) => WeekData) => {
     const key = getWeekKey(currentWeek);
-    setWeekData(prev => ({
-      ...prev,
-      [key]: updater(prev[key] || INITIAL_WEEK_DATA)
-    }));
+    setWeekData(prev => {
+      const updated = {
+        ...prev,
+        [key]: updater(prev[key] || JSON.parse(JSON.stringify(INITIAL_WEEK_DATA)))
+      };
+      // Update previous week data ref if this is the current week
+      if (previousWeekKeyRef.current === key) {
+        previousWeekDataRef.current = updated[key];
+      }
+      return updated;
+    });
   };
 
   // Manual save function
@@ -295,33 +319,22 @@ export default function App() {
   const data = getCurrentWeekData();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="bg-white border-b sticky top-0 z-10">
           <div className="px-4 py-4">
             <div className="relative flex items-center justify-center mb-3">
               <h1 className="text-center">Weekly Diary</h1>
-              <div className="absolute right-0 flex items-center gap-2">
-                <Button
-                  onClick={handleSave}
-                  disabled={saving || !hasUnsavedChanges}
-                  size="sm"
-                  variant={hasUnsavedChanges ? "default" : "ghost"}
-                  className={hasUnsavedChanges ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-                <button
-                  onClick={async () => {
-                    await auth.signOut();
-                    setUser(null);
-                  }}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-                >
-                  Sign Out
-                </button>
-              </div>
+              <button
+                onClick={async () => {
+                  await auth.signOut();
+                  setUser(null);
+                }}
+                className="absolute right-0 text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+              >
+                Sign Out
+              </button>
             </div>
             <WeekSelector 
               currentWeek={currentWeek} 
@@ -329,50 +342,6 @@ export default function App() {
             />
           </div>
         </div>
-
-        {/* Save Button - always visible when there are unsaved changes */}
-        {hasUnsavedChanges && (
-          <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 sticky top-[73px] z-10">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-sm text-yellow-800 font-medium">
-                  You have unsaved changes
-                </span>
-                <span className="text-xs text-yellow-600">
-                  Changes will be saved when you switch weeks
-                </span>
-              </div>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {saving ? 'Saving...' : 'Save Now'}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Saved indicator - shows briefly after manual save */}
-        {!hasUnsavedChanges && lastSaved && (
-          <div className="bg-green-50 border-b border-green-200 px-4 py-2 sticky top-[73px] z-10">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-green-800">
-                ✓ Saved {lastSaved.toLocaleTimeString()}
-              </span>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                size="sm"
-                variant="ghost"
-                className="text-green-700 hover:text-green-800"
-              >
-                Save
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Component Toggle */}
         <div className="px-4 py-3 bg-white border-b">
@@ -431,6 +400,54 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* Floating Save Button */}
+      {hasUnsavedChanges && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] transition-all duration-300">
+          <div className="bg-white rounded-full shadow-lg border border-gray-200 px-4 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-2 h-2 bg-yellow-500 rounded-full"></div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium text-gray-900 truncate">
+                  Unsaved changes
+                </span>
+                <span className="text-xs text-gray-500 truncate">
+                  Tap to save
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 shadow-md flex-shrink-0"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                  Saving...
+                </span>
+              ) : (
+                'Save Now'
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Saved Indicator */}
+      {!hasUnsavedChanges && lastSaved && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] transition-all duration-300">
+          <div className="bg-green-50 border border-green-200 rounded-full px-4 py-2.5 flex items-center justify-center gap-2 shadow-md">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium text-green-800">
+              Saved {lastSaved.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
