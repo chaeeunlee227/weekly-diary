@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+// Recommended approach: Manual Save + Safety Auto-Save
+// This balances user control with data safety while minimizing database costs
+
+import { useState, useEffect, useRef } from 'react';
 import { WeekSelector } from './components/WeekSelector';
 import { ComponentToggle } from './components/ComponentToggle';
 import { HabitTracker } from './components/HabitTracker';
@@ -9,6 +12,8 @@ import { GratefulThings } from './components/GratefulThings';
 import { CommentOfWeek } from './components/CommentOfWeek';
 import { Auth } from './components/Auth';
 import { auth, supabase } from './lib/supabase';
+import { getWeekData, saveWeekData } from './lib/weekDataApi';
+import { Button } from './components/ui/button';
 
 export interface WeekData {
   habits: {
@@ -48,8 +53,13 @@ const INITIAL_WEEK_DATA: WeekData = {
 export default function App() {
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
   const [weekData, setWeekData] = useState<{ [weekKey: string]: WeekData }>({});
+  const [savedData, setSavedData] = useState<{ [weekKey: string]: WeekData }>({});
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const pendingSaveRef = useRef<WeekData | null>(null);
   
   const [visibleComponents, setVisibleComponents] = useState({
     habits: true,
@@ -64,12 +74,10 @@ export default function App() {
   useEffect(() => {
     async function checkUser() {
       try {
-        // Handle OAuth callback - check if there's a session in the URL hash
         if (supabase) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
             setUser(session.user);
-            // Clean up URL hash after successful OAuth
             if (window.location.hash) {
               window.history.replaceState(null, '', window.location.pathname);
             }
@@ -89,10 +97,8 @@ export default function App() {
     }
     checkUser();
 
-    // Listen for auth state changes
     const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      // Clean up URL hash after auth state change
       if (session && window.location.hash) {
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -113,6 +119,94 @@ export default function App() {
     return new Date(d.setDate(diff));
   };
 
+  // Load data from database when week changes or user is available
+  useEffect(() => {
+    if (!user) return;
+
+    const weekKey = getWeekKey(currentWeek);
+    
+    async function loadWeekData() {
+      try {
+        const data = await getWeekData(user.id, weekKey);
+        if (data) {
+          setWeekData(prev => ({ ...prev, [weekKey]: data }));
+          setSavedData(prev => ({ ...prev, [weekKey]: data }));
+          setHasUnsavedChanges(false);
+          setLastSaved(new Date());
+        } else {
+          // Week doesn't exist yet, initialize with empty data
+          const initialData = INITIAL_WEEK_DATA;
+          setWeekData(prev => ({ ...prev, [weekKey]: initialData }));
+          setSavedData(prev => ({ ...prev, [weekKey]: initialData }));
+          setHasUnsavedChanges(false);
+        }
+      } catch (error) {
+        console.error('Error loading week data:', error);
+        // Fallback to local state if database fails
+        const key = getWeekKey(currentWeek);
+        if (!weekData[key]) {
+          setWeekData(prev => ({ ...prev, [key]: INITIAL_WEEK_DATA }));
+          setSavedData(prev => ({ ...prev, [key]: INITIAL_WEEK_DATA }));
+        }
+      }
+    }
+
+    loadWeekData();
+  }, [user, currentWeek]);
+
+  // Check for unsaved changes whenever weekData changes
+  useEffect(() => {
+    if (!user) return;
+    
+    const weekKey = getWeekKey(currentWeek);
+    const currentData = weekData[weekKey];
+    const saved = savedData[weekKey];
+
+    if (!currentData || !saved) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    // Compare current data with saved data
+    const hasChanges = JSON.stringify(currentData) !== JSON.stringify(saved);
+    setHasUnsavedChanges(hasChanges);
+    
+    // Store pending data for auto-save on critical events
+    if (hasChanges) {
+      pendingSaveRef.current = currentData;
+    }
+  }, [weekData, savedData, currentWeek, user]);
+
+  // Auto-save when switching weeks (if there are unsaved changes)
+  useEffect(() => {
+    return () => {
+      // This cleanup runs when currentWeek changes or component unmounts
+      if (pendingSaveRef.current && user) {
+        const previousWeekKey = getWeekKey(currentWeek);
+        // Save in the background (fire and forget)
+        saveWeekData(user.id, previousWeekKey, pendingSaveRef.current).catch(err => {
+          console.error('Auto-save on week change failed:', err);
+        });
+      }
+    };
+  }, [currentWeek, user]);
+
+  // Auto-save on page unload (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && pendingSaveRef.current && user) {
+        // Try to save synchronously (may not always work)
+        const weekKey = getWeekKey(currentWeek);
+        // Use sendBeacon or sync XHR for more reliable unload save
+        // For now, we'll just warn the user
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, currentWeek, user]);
+
   const getCurrentWeekData = (): WeekData => {
     const key = getWeekKey(currentWeek);
     return weekData[key] || INITIAL_WEEK_DATA;
@@ -124,6 +218,31 @@ export default function App() {
       ...prev,
       [key]: updater(prev[key] || INITIAL_WEEK_DATA)
     }));
+  };
+
+  // Manual save function
+  const handleSave = async () => {
+    if (!user) return;
+
+    const weekKey = getWeekKey(currentWeek);
+    const currentData = weekData[weekKey];
+
+    if (!currentData) return;
+
+    setSaving(true);
+    try {
+      await saveWeekData(user.id, weekKey, currentData);
+      // Update saved data to match current data
+      setSavedData(prev => ({ ...prev, [weekKey]: currentData }));
+      setHasUnsavedChanges(false);
+      setLastSaved(new Date());
+      pendingSaveRef.current = null;
+    } catch (error) {
+      console.error('Error saving week data:', error);
+      alert('Failed to save data. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleComponent = (component: keyof typeof visibleComponents) => {
@@ -175,6 +294,50 @@ export default function App() {
             />
           </div>
         </div>
+
+        {/* Save Button - always visible when there are unsaved changes */}
+        {hasUnsavedChanges && (
+          <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3 sticky top-[73px] z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm text-yellow-800 font-medium">
+                  You have unsaved changes
+                </span>
+                <span className="text-xs text-yellow-600">
+                  Changes will be saved when you switch weeks
+                </span>
+              </div>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {saving ? 'Saving...' : 'Save Now'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Saved indicator - shows briefly after manual save */}
+        {!hasUnsavedChanges && lastSaved && (
+          <div className="bg-green-50 border-b border-green-200 px-4 py-2 sticky top-[73px] z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-green-800">
+                ✓ Saved {lastSaved.toLocaleTimeString()}
+              </span>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                size="sm"
+                variant="ghost"
+                className="text-green-700 hover:text-green-800"
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Component Toggle */}
         <div className="px-4 py-3 bg-white border-b">
