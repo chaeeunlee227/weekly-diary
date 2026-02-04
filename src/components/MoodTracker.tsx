@@ -64,7 +64,7 @@ export function MoodTracker({ moods, weekStart, onUpdate, weekStartDay = 'sunday
               </div>
               
               <div className="grid grid-cols-6 gap-1">
-                {MOOD_OPTIONS.map((mood) => (
+                {MOOD_OPTIONS.slice().reverse().map((mood) => (
                   <button
                     key={mood.score}
                     onClick={() => setMood(index, mood.score)}
@@ -90,14 +90,14 @@ export function MoodTracker({ moods, weekStart, onUpdate, weekStartDay = 'sunday
       <div className="mt-4 pt-4 border-t">
         <div className="text-xs text-gray-500 space-y-1">
           <div className="flex items-center justify-between">
-            <span>6 = Very Good</span>
-            <span>5 = Good</span>
-            <span>4 = Okay</span>
+            <span>1 = Worst</span>
+            <span className="text-center -ml-8">2 = Awful&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            <span>3 = Not Bad</span>
           </div>
           <div className="flex items-center justify-between">
-            <span>3 = Not Bad</span>
-            <span>2 = Awful</span>
-            <span>1 = Worst</span>
+            <span>4 = Okay</span>
+            <span className="text-center -ml-8">5 = Good</span>
+            <span>6 = Very Good</span>
           </div>
         </div>
       </div>
