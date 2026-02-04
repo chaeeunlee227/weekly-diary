@@ -1,5 +1,6 @@
 import { Coffee, Sun, Moon, Cookie } from 'lucide-react';
 import { useState } from 'react';
+import { getDaysArray, type WeekStartDay } from '../lib/weekUtils';
 
 interface MealTrackerProps {
   meals: {
@@ -12,9 +13,8 @@ interface MealTrackerProps {
   };
   weekStart: Date;
   onUpdate: (meals: MealTrackerProps['meals']) => void;
+  weekStartDay?: WeekStartDay;
 }
-
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const MEAL_CATEGORIES = [
   { key: 'breakfast' as const, label: 'Breakfast', icon: Coffee, color: 'text-orange-500' },
@@ -23,7 +23,8 @@ const MEAL_CATEGORIES = [
   { key: 'extra' as const, label: 'Extra', icon: Cookie, color: 'text-pink-500' }
 ];
 
-export function MealTracker({ meals, weekStart, onUpdate }: MealTrackerProps) {
+export function MealTracker({ meals, weekStart, onUpdate, weekStartDay = 'sunday' }: MealTrackerProps) {
+  const DAYS = getDaysArray(weekStartDay, 'full');
   const [expandedDay, setExpandedDay] = useState<number | null>(0);
 
   const updateMeal = (dayIndex: number, category: string, value: string) => {

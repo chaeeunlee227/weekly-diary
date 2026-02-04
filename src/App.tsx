@@ -50,6 +50,29 @@ const INITIAL_WEEK_DATA: WeekData = {
   comment: ''
 };
 
+import { type WeekStartDay } from './lib/weekUtils';
+
+const WEEK_START_STORAGE_KEY = 'weekStartDay';
+
+const getStoredWeekStart = (userId?: string): WeekStartDay => {
+  try {
+    const key = userId ? `${WEEK_START_STORAGE_KEY}_${userId}` : WEEK_START_STORAGE_KEY;
+    const stored = localStorage.getItem(key);
+    return (stored === 'monday' || stored === 'sunday') ? stored : 'sunday';
+  } catch {
+    return 'sunday';
+  }
+};
+
+const setStoredWeekStart = (weekStart: WeekStartDay, userId?: string) => {
+  try {
+    const key = userId ? `${WEEK_START_STORAGE_KEY}_${userId}` : WEEK_START_STORAGE_KEY;
+    localStorage.setItem(key, weekStart);
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 export default function App() {
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
   const [weekData, setWeekData] = useState<{ [weekKey: string]: WeekData }>({});
@@ -62,6 +85,7 @@ export default function App() {
   const pendingSaveRef = useRef<WeekData | null>(null);
   const previousWeekKeyRef = useRef<string | null>(null);
   const previousWeekDataRef = useRef<WeekData | null>(null);
+  const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>('sunday');
 
   const [visibleComponents, setVisibleComponents] = useState({
     habits: true,
@@ -109,16 +133,45 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Load week start preference
+  useEffect(() => {
+    if (user) {
+      const stored = getStoredWeekStart(user.id);
+      setWeekStartDay(stored);
+    } else {
+      const stored = getStoredWeekStart();
+      setWeekStartDay(stored);
+    }
+  }, [user]);
+
   const getWeekKey = (date: Date) => {
     const weekStart = getWeekStart(date);
     return weekStart.toISOString().split('T')[0];
   };
 
-  const getWeekStart = (date: Date) => {
+  const getWeekStart = (date: Date, startDay: WeekStartDay = weekStartDay) => {
     const d = new Date(date);
     const day = d.getDay();
-    const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
+    let diff: number;
+    
+    if (startDay === 'monday') {
+      // Monday = 1, so if day is 0 (Sunday), we go back 6 days
+      // Otherwise, go back (day - 1) days
+      diff = day === 0 ? -6 : -(day - 1);
+    } else {
+      // Sunday = 0, so go back 'day' days
+      diff = -day;
+    }
+    
+    return new Date(d.setDate(d.getDate() + diff));
+  };
+
+  const handleWeekStartChange = (newWeekStart: WeekStartDay) => {
+    setWeekStartDay(newWeekStart);
+    setStoredWeekStart(newWeekStart, user?.id);
+    // Recalculate current week based on new start day
+    const newWeekStartDate = getWeekStart(currentWeek, newWeekStart);
+    setCurrentWeek(newWeekStartDate);
   };
 
   // Track previous week key for auto-save
@@ -381,14 +434,18 @@ export default function App() {
             <WeekSelector
               currentWeek={currentWeek}
               onWeekChange={setCurrentWeek}
+              weekStartDay={weekStartDay}
+              getWeekStart={getWeekStart}
             />
           </div>
 
-          {/* Component Toggle (under header) */}
+          {/* Settings (under header) */}
           <div className="px-4 py-3 border-t">
             <ComponentToggle
               visibleComponents={visibleComponents}
               onToggle={toggleComponent}
+              weekStartDay={weekStartDay}
+              onWeekStartChange={handleWeekStartChange}
             />
           </div>
         </div>
@@ -402,6 +459,7 @@ export default function App() {
                 weekStart={getWeekStart(currentWeek)}
                 onUpdate={(habits) => updateWeekData(d => ({ ...d, habits }))}
                 userId={user?.id}
+                weekStartDay={weekStartDay}
               />
             )}
 
@@ -410,6 +468,7 @@ export default function App() {
                 moods={data.moods}
                 weekStart={getWeekStart(currentWeek)}
                 onUpdate={(moods) => updateWeekData(d => ({ ...d, moods }))}
+                weekStartDay={weekStartDay}
               />
             )}
 
@@ -418,6 +477,7 @@ export default function App() {
                 meals={data.meals}
                 weekStart={getWeekStart(currentWeek)}
                 onUpdate={(meals) => updateWeekData(d => ({ ...d, meals }))}
+                weekStartDay={weekStartDay}
               />
             )}
 
@@ -426,6 +486,7 @@ export default function App() {
                 events={data.events}
                 weekStart={getWeekStart(currentWeek)}
                 onUpdate={(events) => updateWeekData(d => ({ ...d, events }))}
+                weekStartDay={weekStartDay}
               />
             )}
 

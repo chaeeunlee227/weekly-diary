@@ -1,5 +1,6 @@
 import { Plus, Trash2, Edit2, Check, X, Save, FolderOpen, ChevronUp, GripVertical } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { getDaysArray, type WeekStartDay } from '../lib/weekUtils';
 
 interface HabitTrackerProps {
   data: {
@@ -9,6 +10,7 @@ interface HabitTrackerProps {
   weekStart: Date;
   onUpdate: (data: HabitTrackerProps['data']) => void;
   userId?: string;
+  weekStartDay?: WeekStartDay;
 }
 
 interface HabitTemplate {
@@ -18,7 +20,6 @@ interface HabitTemplate {
   createdAt: number;
 }
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const STORAGE_KEY = 'habitTemplates';
 
@@ -53,7 +54,8 @@ const deleteTemplate = (id: string, userId?: string): void => {
   localStorage.setItem(key, JSON.stringify(filtered));
 };
 
-export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTrackerProps) {
+export function HabitTracker({ data, weekStart, onUpdate, userId, weekStartDay = 'sunday' }: HabitTrackerProps) {
+  const DAYS = getDaysArray(weekStartDay, 'short');
   const [isAdding, setIsAdding] = useState(false);
   const [newHabit, setNewHabit] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);

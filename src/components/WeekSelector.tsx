@@ -1,20 +1,17 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { type WeekStartDay } from '../lib/weekUtils';
 
 interface WeekSelectorProps {
   currentWeek: Date;
   onWeekChange: (date: Date) => void;
+  weekStartDay: WeekStartDay;
+  getWeekStart: (date: Date, startDay?: WeekStartDay) => Date;
 }
 
-export function WeekSelector({ currentWeek, onWeekChange }: WeekSelectorProps) {
-  const getWeekStart = (date: Date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
-  };
+export function WeekSelector({ currentWeek, onWeekChange, weekStartDay, getWeekStart }: WeekSelectorProps) {
 
   const getWeekEnd = (date: Date) => {
-    const start = getWeekStart(date);
+    const start = getWeekStart(date, weekStartDay);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     return end;
@@ -30,7 +27,7 @@ export function WeekSelector({ currentWeek, onWeekChange }: WeekSelectorProps) {
     onWeekChange(newDate);
   };
 
-  const weekStart = getWeekStart(currentWeek);
+  const weekStart = getWeekStart(currentWeek, weekStartDay);
   const weekEnd = getWeekEnd(currentWeek);
 
   return (

@@ -1,9 +1,11 @@
 import { Smile, Meh, Frown } from 'lucide-react';
+import { getDaysArray, type WeekStartDay } from '../lib/weekUtils';
 
 interface MoodTrackerProps {
   moods: number[]; // 7 days, scores 1-6 (0 = not set)
   weekStart: Date;
   onUpdate: (moods: number[]) => void;
+  weekStartDay?: WeekStartDay;
 }
 
 const MOOD_OPTIONS = [
@@ -15,9 +17,8 @@ const MOOD_OPTIONS = [
   { label: 'Worst', score: 1, color: 'bg-red-600', emoji: '😭' }
 ];
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-export function MoodTracker({ moods, weekStart, onUpdate }: MoodTrackerProps) {
+export function MoodTracker({ moods, weekStart, onUpdate, weekStartDay = 'sunday' }: MoodTrackerProps) {
+  const DAYS = getDaysArray(weekStartDay, 'short');
   const setMood = (dayIndex: number, score: number) => {
     const updated = [...moods];
     // Toggle: if clicking the same mood, remove it (set to 0)

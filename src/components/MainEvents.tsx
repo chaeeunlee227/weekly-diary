@@ -1,5 +1,6 @@
 import { Plus, Trash2, Calendar } from 'lucide-react';
 import { useState } from 'react';
+import { getDaysArray, type WeekStartDay } from '../lib/weekUtils';
 
 interface MainEventsProps {
   events: Array<{
@@ -9,11 +10,12 @@ interface MainEventsProps {
   }>;
   weekStart: Date;
   onUpdate: (events: MainEventsProps['events']) => void;
+  weekStartDay?: WeekStartDay;
 }
 
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-export function MainEvents({ events, weekStart, onUpdate }: MainEventsProps) {
+export function MainEvents({ events, weekStart, onUpdate, weekStartDay = 'sunday' }: MainEventsProps) {
+  const DAYS = getDaysArray(weekStartDay, 'full');
   const [isAdding, setIsAdding] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(weekStart);
   const [newEventText, setNewEventText] = useState('');
