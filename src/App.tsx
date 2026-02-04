@@ -144,6 +144,19 @@ export default function App() {
     }
   }, [user]);
 
+  // Normalized week key function - always uses Sunday as base for database consistency
+  // This ensures the same calendar week always uses the same database key,
+  // regardless of the user's start-of-week preference
+  const getNormalizedWeekKey = (date: Date): string => {
+    const d = new Date(date);
+    const day = d.getDay();
+    // Always normalize to Sunday (day 0)
+    const diff = -day;
+    const normalizedWeekStart = new Date(d.setDate(d.getDate() + diff));
+    return normalizedWeekStart.toISOString().split('T')[0];
+  };
+
+  // Display week key - uses user's preference for UI purposes (kept for backward compatibility)
   const getWeekKey = (date: Date) => {
     const weekStart = getWeekStart(date);
     return weekStart.toISOString().split('T')[0];
@@ -176,7 +189,7 @@ export default function App() {
 
   // Track previous week key for auto-save
   useEffect(() => {
-    const weekKey = getWeekKey(currentWeek);
+    const weekKey = getNormalizedWeekKey(currentWeek);
     const previousWeekKey = previousWeekKeyRef.current;
 
     // If week changed and we have previous week data to save
@@ -198,7 +211,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    const weekKey = getWeekKey(currentWeek);
+    const weekKey = getNormalizedWeekKey(currentWeek);
 
     async function loadWeekData() {
       try {
@@ -215,7 +228,7 @@ export default function App() {
       } catch (error) {
         console.error('Error loading week data:', error);
         // Fallback to local state if database fails
-        const key = getWeekKey(currentWeek);
+        const key = getNormalizedWeekKey(currentWeek);
         if (!weekData[key]) {
           const initialData = JSON.parse(JSON.stringify(INITIAL_WEEK_DATA));
           setWeekData(prev => ({ ...prev, [key]: initialData }));
@@ -231,7 +244,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    const weekKey = getWeekKey(currentWeek);
+    const weekKey = getNormalizedWeekKey(currentWeek);
     const currentData = weekData[weekKey];
     const saved = savedData[weekKey];
 
@@ -289,7 +302,7 @@ export default function App() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges && pendingSaveRef.current && user) {
         // Try to save synchronously (may not always work)
-        const weekKey = getWeekKey(currentWeek);
+        const weekKey = getNormalizedWeekKey(currentWeek);
         // Use sendBeacon or sync XHR for more reliable unload save
         // For now, we'll just warn the user
         e.preventDefault();
@@ -301,12 +314,12 @@ export default function App() {
   }, [hasUnsavedChanges, currentWeek, user]);
 
   const getCurrentWeekData = (): WeekData => {
-    const key = getWeekKey(currentWeek);
+    const key = getNormalizedWeekKey(currentWeek);
     return weekData[key] || INITIAL_WEEK_DATA;
   };
 
   const updateWeekData = (updater: (data: WeekData) => WeekData) => {
-    const key = getWeekKey(currentWeek);
+    const key = getNormalizedWeekKey(currentWeek);
     setWeekData(prev => {
       const updated = {
         ...prev,
@@ -324,7 +337,7 @@ export default function App() {
   const handleSave = async () => {
     if (!user) return;
 
-    const weekKey = getWeekKey(currentWeek);
+    const weekKey = getNormalizedWeekKey(currentWeek);
     const currentData = weekData[weekKey];
 
     if (!currentData) return;
