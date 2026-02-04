@@ -44,59 +44,54 @@ export function ComponentToggle({ visibleComponents, onToggle, weekStartDay, onW
             className="fixed inset-0 bg-black/20 z-20"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border z-30 p-4">
+          <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg border z-30 p-4 w-auto max-w-[90vw]">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-medium">Settings</span>
+              <span className="font-medium text-base leading-normal whitespace-nowrap">Show/Hide Components</span>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-1 hover:bg-gray-100 rounded flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-medium mb-2">Show/Hide Components</div>
-                <div className="space-y-2">
-                  {(Object.keys(COMPONENT_LABELS) as Array<keyof typeof COMPONENT_LABELS>).map((key) => (
-                    <label key={key} className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={visibleComponents[key]}
-                        onChange={() => onToggle(key)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm">{COMPONENT_LABELS[key]}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="border-t pt-3">
-                <div className="text-sm font-medium mb-2">Week Start</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onWeekStartChange('sunday')}
-                    className={`px-3 py-1.5 rounded text-sm ${
-                      weekStartDay === 'sunday'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Sunday
-                  </button>
-                  <button
-                    onClick={() => onWeekStartChange('monday')}
-                    className={`px-3 py-1.5 rounded text-sm ${
-                      weekStartDay === 'monday'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Monday
-                  </button>
-                </div>
+            <div className="space-y-2">
+              {(Object.keys(COMPONENT_LABELS) as Array<keyof typeof COMPONENT_LABELS>).map((key) => (
+                <label key={key} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visibleComponents[key]}
+                    onChange={() => onToggle(key)}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                  />
+                  <span className="text-sm leading-normal">{COMPONENT_LABELS[key]}</span>
+                </label>
+              ))}
+            </div>
+            
+            <div className="border-t pt-3 mt-4">
+              <div className="text-sm font-medium mb-2 leading-normal whitespace-nowrap">Week Start</div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onWeekStartChange('sunday')}
+                  className={`px-3 py-1.5 rounded text-sm leading-normal whitespace-nowrap ${
+                    weekStartDay === 'sunday'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Sunday
+                </button>
+                <button
+                  onClick={() => onWeekStartChange('monday')}
+                  className={`px-3 py-1.5 rounded text-sm leading-normal whitespace-nowrap ${
+                    weekStartDay === 'monday'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Monday
+                </button>
               </div>
             </div>
           </div>
