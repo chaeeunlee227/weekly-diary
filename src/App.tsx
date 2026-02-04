@@ -321,44 +321,34 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-md mx-auto">
         {/* Header */}
-        <div className="bg-white border-b sticky top-0 z-10">
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex flex-col">
-                <h1 className="text-lg font-semibold">Weekly Diary</h1>
-                {lastSaved && (
-                  <span className="text-xs text-gray-500">
-                    Saved {lastSaved.toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col">
+            <h1 className="text-lg font-semibold">Weekly Diary</h1>
+            {lastSaved && (
+              <span className="text-xs text-gray-500">
+                Saved {lastSaved.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
 
-              <div className="flex items-center gap-2">
-                {hasUnsavedChanges && (
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-1 text-xs"
-                  >
-                    {saving ? 'Saving…' : 'Save'}
-                  </Button>
-                )}
-                <button
-                  onClick={async () => {
-                    await auth.signOut();
-                    setUser(null);
-                  }}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-            <WeekSelector
-              currentWeek={currentWeek}
-              onWeekChange={setCurrentWeek}
-            />
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving || !user}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-1 text-xs"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+            <button
+              onClick={async () => {
+                await auth.signOut();
+                setUser(null);
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
 
