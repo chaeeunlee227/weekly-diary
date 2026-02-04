@@ -20,7 +20,8 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export function MoodTracker({ moods, weekStart, onUpdate }: MoodTrackerProps) {
   const setMood = (dayIndex: number, score: number) => {
     const updated = [...moods];
-    updated[dayIndex] = score;
+    // Toggle: if clicking the same mood, remove it (set to 0)
+    updated[dayIndex] = moods[dayIndex] === score ? 0 : score;
     onUpdate(updated);
   };
 
