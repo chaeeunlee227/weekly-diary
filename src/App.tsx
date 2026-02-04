@@ -391,10 +391,6 @@ export default function App() {
     }
   };
 
-  // Handle save with summary preview
-  const handleSaveWithSummary = () => {
-    setShowWeekSummary(true);
-  };
 
   // Refresh data
   const handleRefresh = async () => {
@@ -462,7 +458,7 @@ export default function App() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleSaveWithSummary}
+                  onClick={handleSave}
                   disabled={saving || !user || !hasUnsavedChanges}
                   style={{
                     backgroundColor: hasUnsavedChanges ? '#2563eb' : '#9ca3af',
