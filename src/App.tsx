@@ -62,7 +62,7 @@ export default function App() {
   const pendingSaveRef = useRef<WeekData | null>(null);
   const previousWeekKeyRef = useRef<string | null>(null);
   const previousWeekDataRef = useRef<WeekData | null>(null);
-  
+
   const [visibleComponents, setVisibleComponents] = useState({
     habits: true,
     mood: true,
@@ -125,7 +125,7 @@ export default function App() {
   useEffect(() => {
     const weekKey = getWeekKey(currentWeek);
     const previousWeekKey = previousWeekKeyRef.current;
-    
+
     // If week changed and we have previous week data to save
     if (previousWeekKey !== null && previousWeekKey !== weekKey && previousWeekDataRef.current && user) {
       // Save previous week's data before loading new week
@@ -136,7 +136,7 @@ export default function App() {
       // Clear the previous week data after saving
       previousWeekDataRef.current = null;
     }
-    
+
     // Update the previous week key reference
     previousWeekKeyRef.current = weekKey;
   }, [currentWeek, user]);
@@ -146,13 +146,13 @@ export default function App() {
     if (!user) return;
 
     const weekKey = getWeekKey(currentWeek);
-    
+
     async function loadWeekData() {
       try {
         const data = await getWeekData(user.id, weekKey);
         // Deep clone to ensure proper comparison later
         const dataToSave = data ? JSON.parse(JSON.stringify(data)) : JSON.parse(JSON.stringify(INITIAL_WEEK_DATA));
-        
+
         setWeekData(prev => ({ ...prev, [weekKey]: dataToSave }));
         setSavedData(prev => ({ ...prev, [weekKey]: JSON.parse(JSON.stringify(dataToSave)) }));
         setHasUnsavedChanges(false);
@@ -177,7 +177,7 @@ export default function App() {
   // Check for unsaved changes whenever weekData changes
   useEffect(() => {
     if (!user) return;
-    
+
     const weekKey = getWeekKey(currentWeek);
     const currentData = weekData[weekKey];
     const saved = savedData[weekKey];
@@ -212,9 +212,9 @@ export default function App() {
     const currentNormalized = normalizeForComparison(currentData);
     const savedNormalized = normalizeForComparison(saved);
     const hasChanges = JSON.stringify(currentNormalized) !== JSON.stringify(savedNormalized);
-    
+
     setHasUnsavedChanges(hasChanges);
-    
+
     // Store pending data for auto-save on critical events
     if (hasChanges) {
       pendingSaveRef.current = currentData;
@@ -323,20 +323,40 @@ export default function App() {
         {/* Header */}
         <div className="bg-white border-b sticky top-0 z-10">
           <div className="px-4 py-4">
-            <div className="relative flex items-center justify-center mb-3">
-              <h1 className="text-center">Weekly Diary</h1>
-              <button
-                onClick={async () => {
-                  await auth.signOut();
-                  setUser(null);
-                }}
-                className="absolute right-0 text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-              >
-                Sign Out
-              </button>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col">
+                <h1 className="text-lg font-semibold">Weekly Diary</h1>
+                {lastSaved && (
+                  <span className="text-xs text-gray-500">
+                    Saved {lastSaved.toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {hasUnsavedChanges && (
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-1 text-xs"
+                  >
+                    {saving ? 'Saving…' : 'Save'}
+                  </Button>
+                )}
+                <button
+                  onClick={async () => {
+                    await auth.signOut();
+                    setUser(null);
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
-            <WeekSelector 
-              currentWeek={currentWeek} 
+            <WeekSelector
+              currentWeek={currentWeek}
               onWeekChange={setCurrentWeek}
             />
           </div>
@@ -344,7 +364,7 @@ export default function App() {
 
         {/* Component Toggle */}
         <div className="px-4 py-3 bg-white border-b">
-          <ComponentToggle 
+          <ComponentToggle
             visibleComponents={visibleComponents}
             onToggle={toggleComponent}
           />
@@ -353,7 +373,7 @@ export default function App() {
         {/* Main Content */}
         <div className="px-4 py-4 space-y-4">
           {visibleComponents.habits && (
-            <HabitTracker 
+            <HabitTracker
               data={data.habits}
               weekStart={getWeekStart(currentWeek)}
               onUpdate={(habits) => updateWeekData(d => ({ ...d, habits }))}
@@ -361,7 +381,7 @@ export default function App() {
           )}
 
           {visibleComponents.mood && (
-            <MoodTracker 
+            <MoodTracker
               moods={data.moods}
               weekStart={getWeekStart(currentWeek)}
               onUpdate={(moods) => updateWeekData(d => ({ ...d, moods }))}
@@ -369,7 +389,7 @@ export default function App() {
           )}
 
           {visibleComponents.meals && (
-            <MealTracker 
+            <MealTracker
               meals={data.meals}
               weekStart={getWeekStart(currentWeek)}
               onUpdate={(meals) => updateWeekData(d => ({ ...d, meals }))}
@@ -377,7 +397,7 @@ export default function App() {
           )}
 
           {visibleComponents.events && (
-            <MainEvents 
+            <MainEvents
               events={data.events}
               weekStart={getWeekStart(currentWeek)}
               onUpdate={(events) => updateWeekData(d => ({ ...d, events }))}
@@ -385,14 +405,14 @@ export default function App() {
           )}
 
           {visibleComponents.grateful && (
-            <GratefulThings 
+            <GratefulThings
               grateful={data.grateful}
               onUpdate={(grateful) => updateWeekData(d => ({ ...d, grateful }))}
             />
           )}
 
           {visibleComponents.comment && (
-            <CommentOfWeek 
+            <CommentOfWeek
               comment={data.comment}
               onUpdate={(comment) => updateWeekData(d => ({ ...d, comment }))}
             />
