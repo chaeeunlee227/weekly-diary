@@ -88,6 +88,8 @@ export default function App() {
   const pendingSaveRef = useRef<WeekData | null>(null);
   const previousWeekKeyRef = useRef<string | null>(null);
   const previousWeekDataRef = useRef<WeekData | null>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(220);
   const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>('sunday');
   const [showWeekSummary, setShowWeekSummary] = useState(false);
   const [showStatisticsPage, setShowStatisticsPage] = useState(false);
@@ -148,6 +150,31 @@ export default function App() {
       setWeekStartDay(stored);
     }
   }, [user]);
+
+  // Measure header height for spacer
+  useEffect(() => {
+    if (headerRef.current && !showStatisticsPage) {
+      const updateHeight = () => {
+        if (headerRef.current) {
+          // Use getBoundingClientRect for accurate measurement
+          const height = headerRef.current.getBoundingClientRect().height;
+          setHeaderHeight(height);
+        }
+      };
+      // Use multiple timeouts to catch layout changes
+      updateHeight();
+      const timeout1 = setTimeout(updateHeight, 50);
+      const timeout2 = setTimeout(updateHeight, 200);
+      const timeout3 = setTimeout(updateHeight, 500);
+      window.addEventListener('resize', updateHeight);
+      return () => {
+        window.removeEventListener('resize', updateHeight);
+        clearTimeout(timeout1);
+        clearTimeout(timeout2);
+        clearTimeout(timeout3);
+      };
+    }
+  }, [showStatisticsPage, weekStartDay, lastSaved, hasUnsavedChanges, currentWeek]);
 
   // Normalized week key function - always uses Sunday as base for database consistency
   // This ensures the same calendar week always uses the same database key,
@@ -418,12 +445,11 @@ export default function App() {
 
   return (
     <>
-    <div className={`min-h-screen bg-gray-50 pb-24 ${showStatisticsPage ? 'statistics-page-open' : ''}`} style={{ overflow: showStatisticsPage ? 'hidden' : 'auto' }}>
-      <div className="max-w-md mx-auto">
-        {/* Header + Week Selector */}
-        {!showStatisticsPage && (
-        <div className="bg-white border-b sticky top-0 z-10">
-          <div className="px-4 py-4">
+    {/* Header + Week Selector - Fixed at top */}
+    {!showStatisticsPage && (
+      <div className="fixed top-0 left-0 right-0" style={{ zIndex: 9999 }}>
+        <div className="max-w-md mx-auto bg-white border-b shadow-sm" ref={headerRef}>
+            <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex flex-col">
                 <h1 className="text-lg font-semibold">Weekly Diary</h1>
@@ -506,13 +532,21 @@ export default function App() {
             </button>
           </div>
         </div>
+      </div>
+    )}
+
+    <div className={`min-h-screen bg-gray-50 pb-24 ${showStatisticsPage ? 'statistics-page-open' : ''}`} style={{ overflow: showStatisticsPage ? 'hidden' : 'auto' }}>
+      <div className="max-w-md mx-auto">
+        {/* Spacer for fixed header */}
+        {!showStatisticsPage && (
+          <div style={{ height: `${headerHeight + 4}px` }}></div>
         )}
 
         {/* Main Content */}
-        <div className="min-h-[calc(100vh-200px)]">
+        <div className="min-h-[calc(100vh-200px)] relative z-0">
           <PullToRefresh onRefresh={handleRefresh} disabled={!user || saving}>
             <div className="py-4">
-            <div className="mx-auto max-w-md w-[calc(100%-2rem)] space-y-4">
+            <div className="mx-auto max-w-md w-[calc(100%-2rem)] space-y-4 relative z-0">
               {visibleComponents.habits && (
               <HabitTracker
                 data={data.habits}
