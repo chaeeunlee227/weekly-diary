@@ -320,44 +320,77 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex flex-col">
-            <h1 className="text-lg font-semibold">Weekly Diary</h1>
-            {lastSaved && (
-              <span className="text-xs text-gray-500">
-                Saved {lastSaved.toLocaleTimeString()}
-              </span>
-            )}
+        {/* Header + Week Selector */}
+        <div className="bg-white border-b sticky top-0 z-10">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col">
+                <h1 className="text-lg font-semibold">Weekly Diary</h1>
+                {lastSaved && (
+                  <span className="text-xs text-gray-500">
+                    Saved {lastSaved.toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !user}
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '9999px',
+                    padding: '0.375rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    cursor: saving || !user ? 'not-allowed' : 'pointer',
+                    opacity: saving || !user ? 0.5 : 1,
+                    minWidth: '60px',
+                    height: '28px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!saving && user) {
+                      e.currentTarget.style.backgroundColor = '#1d4ed8';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!saving && user) {
+                      e.currentTarget.style.backgroundColor = '#2563eb';
+                    }
+                  }}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  onClick={async () => {
+                    await auth.signOut();
+                    setUser(null);
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+
+            <WeekSelector
+              currentWeek={currentWeek}
+              onWeekChange={setCurrentWeek}
+            />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={saving || !user}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-3 py-1 text-xs"
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-            <button
-              onClick={async () => {
-                await auth.signOut();
-                setUser(null);
-              }}
-              className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-            >
-              Sign Out
-            </button>
+          {/* Component Toggle (under header) */}
+          <div className="px-4 py-3 border-t">
+            <ComponentToggle
+              visibleComponents={visibleComponents}
+              onToggle={toggleComponent}
+            />
           </div>
-        </div>
-
-        {/* Component Toggle */}
-        <div className="px-4 py-3 bg-white border-b">
-          <ComponentToggle
-            visibleComponents={visibleComponents}
-            onToggle={toggleComponent}
-          />
         </div>
 
         {/* Main Content */}
