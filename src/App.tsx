@@ -394,53 +394,55 @@ export default function App() {
         </div>
 
         {/* Main Content */}
-        <div className="px-4 py-4 space-y-4">
-          {visibleComponents.habits && (
-            <HabitTracker
-              data={data.habits}
-              weekStart={getWeekStart(currentWeek)}
-              onUpdate={(habits) => updateWeekData(d => ({ ...d, habits }))}
-              userId={user?.id}
-            />
-          )}
+        <div className="py-4 space-y-4">
+          <div className="mx-auto max-w-md w-[calc(100%-2rem)]">
+            {visibleComponents.habits && (
+              <HabitTracker
+                data={data.habits}
+                weekStart={getWeekStart(currentWeek)}
+                onUpdate={(habits) => updateWeekData(d => ({ ...d, habits }))}
+                userId={user?.id}
+              />
+            )}
 
-          {visibleComponents.mood && (
-            <MoodTracker
-              moods={data.moods}
-              weekStart={getWeekStart(currentWeek)}
-              onUpdate={(moods) => updateWeekData(d => ({ ...d, moods }))}
-            />
-          )}
+            {visibleComponents.mood && (
+              <MoodTracker
+                moods={data.moods}
+                weekStart={getWeekStart(currentWeek)}
+                onUpdate={(moods) => updateWeekData(d => ({ ...d, moods }))}
+              />
+            )}
 
-          {visibleComponents.meals && (
-            <MealTracker
-              meals={data.meals}
-              weekStart={getWeekStart(currentWeek)}
-              onUpdate={(meals) => updateWeekData(d => ({ ...d, meals }))}
-            />
-          )}
+            {visibleComponents.meals && (
+              <MealTracker
+                meals={data.meals}
+                weekStart={getWeekStart(currentWeek)}
+                onUpdate={(meals) => updateWeekData(d => ({ ...d, meals }))}
+              />
+            )}
 
-          {visibleComponents.events && (
-            <MainEvents
-              events={data.events}
-              weekStart={getWeekStart(currentWeek)}
-              onUpdate={(events) => updateWeekData(d => ({ ...d, events }))}
-            />
-          )}
+            {visibleComponents.events && (
+              <MainEvents
+                events={data.events}
+                weekStart={getWeekStart(currentWeek)}
+                onUpdate={(events) => updateWeekData(d => ({ ...d, events }))}
+              />
+            )}
 
-          {visibleComponents.grateful && (
-            <GratefulThings
-              grateful={data.grateful}
-              onUpdate={(grateful) => updateWeekData(d => ({ ...d, grateful }))}
-            />
-          )}
+            {visibleComponents.grateful && (
+              <GratefulThings
+                grateful={data.grateful}
+                onUpdate={(grateful) => updateWeekData(d => ({ ...d, grateful }))}
+              />
+            )}
 
-          {visibleComponents.comment && (
-            <CommentOfWeek
-              comment={data.comment}
-              onUpdate={(comment) => updateWeekData(d => ({ ...d, comment }))}
-            />
-          )}
+            {visibleComponents.comment && (
+              <CommentOfWeek
+                comment={data.comment}
+                onUpdate={(comment) => updateWeekData(d => ({ ...d, comment }))}
+              />
+            )}
+          </div>
         </div>
       </div>
 

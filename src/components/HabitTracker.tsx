@@ -1,4 +1,4 @@
-import { Plus, Trash2, Edit2, Check, X, Save, FolderOpen, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Save, FolderOpen, ChevronUp, GripVertical } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface HabitTrackerProps {
@@ -62,6 +62,10 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templates, setTemplates] = useState<HabitTemplate[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [touchStartIndex, setTouchStartIndex] = useState<number | null>(null);
 
   // Load templates on mount and when userId changes
   useEffect(() => {
@@ -130,6 +134,112 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
         [tracker]: updated
       }
     });
+  };
+
+  const moveHabit = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const newTrackers = [...data.trackers];
+    const newCompleted = { ...data.completed };
+
+    // Remove item from original position
+    const [movedTracker] = newTrackers.splice(fromIndex, 1);
+    const movedCompleted = newCompleted[movedTracker] || [false, false, false, false, false, false, false];
+
+    // Insert at new position
+    newTrackers.splice(toIndex, 0, movedTracker);
+
+    // Rebuild completed object in new order
+    const reorderedCompleted: { [tracker: string]: boolean[] } = {};
+    newTrackers.forEach(tracker => {
+      reorderedCompleted[tracker] = newCompleted[tracker] || [false, false, false, false, false, false, false];
+    });
+
+    onUpdate({
+      trackers: newTrackers,
+      completed: reorderedCompleted
+    });
+  };
+
+  // Mouse drag handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', ''); // Required for Firefox
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== dropIndex) {
+      moveHabit(draggedIndex, dropIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Touch drag handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    // Don't start drag if clicking on buttons (edit, delete, checkboxes)
+    const target = e.target as HTMLElement;
+    const isButton = target.closest('button') && !target.closest('.grip-handle');
+    
+    if (!isButton) {
+      const touch = e.touches[0];
+      setTouchStartY(touch.clientY);
+      setTouchStartIndex(index);
+      setDraggedIndex(index);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null || touchStartIndex === null) return;
+    
+    const touch = e.touches[0];
+    const currentY = touch.clientY;
+    const deltaY = currentY - touchStartY;
+
+    // Only start dragging if moved significantly (to avoid accidental drags)
+    if (Math.abs(deltaY) > 15) {
+      e.preventDefault(); // Prevent scrolling while dragging
+      
+      // Find which item we're over based on touch position
+      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+      const habitRow = elements.find(el => el.getAttribute('data-habit-index') !== null);
+      
+      if (habitRow) {
+        const overIndex = parseInt(habitRow.getAttribute('data-habit-index') || '-1');
+        if (overIndex >= 0 && overIndex !== touchStartIndex) {
+          setDragOverIndex(overIndex);
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartIndex !== null && dragOverIndex !== null && touchStartIndex !== dragOverIndex) {
+      moveHabit(touchStartIndex, dragOverIndex);
+    }
+    setTouchStartY(null);
+    setTouchStartIndex(null);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleSaveTemplate = () => {
@@ -334,7 +444,25 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
           </div>
 
           {data.trackers.map((tracker, index) => (
-            <div key={tracker} className="flex items-center gap-2">
+            <div
+              key={tracker}
+              data-habit-index={index}
+              draggable={editingIndex !== index}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              onTouchStart={(e) => handleTouchStart(e, index)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              className={`
+                flex items-center gap-2 p-2 rounded-lg transition-all
+                ${draggedIndex === index ? 'opacity-50 bg-blue-50' : ''}
+                ${dragOverIndex === index && draggedIndex !== index ? 'bg-blue-100 border-2 border-blue-300 border-dashed' : ''}
+                ${editingIndex !== index ? 'cursor-move' : ''}
+              `}
+            >
               {editingIndex === index ? (
                 <div className="flex-1 flex gap-2">
                   <input
@@ -363,6 +491,9 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
                 </div>
               ) : (
                 <>
+                  <div className="flex-shrink-0 cursor-grab active:cursor-grabbing grip-handle touch-manipulation">
+                    <GripVertical className="w-5 h-5 text-gray-400" />
+                  </div>
                   <div className="flex-1 text-sm min-w-0">
                     <span className="truncate block">{tracker}</span>
                   </div>
@@ -388,13 +519,15 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
                   </div>
                   <button
                     onClick={() => startEditing(index)}
-                    className="p-1 hover:bg-gray-100 rounded"
+                    className="p-1 hover:bg-gray-100 rounded flex-shrink-0"
+                    title="Edit habit"
                   >
                     <Edit2 className="w-4 h-4 text-gray-500" />
                   </button>
                   <button
                     onClick={() => deleteHabit(tracker)}
-                    className="p-1 hover:bg-red-50 rounded"
+                    className="p-1 hover:bg-red-50 rounded flex-shrink-0"
+                    title="Delete habit"
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
