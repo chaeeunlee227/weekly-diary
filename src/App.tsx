@@ -400,6 +400,7 @@ export default function App() {
               data={data.habits}
               weekStart={getWeekStart(currentWeek)}
               onUpdate={(habits) => updateWeekData(d => ({ ...d, habits }))}
+              userId={user?.id}
             />
           )}
 
