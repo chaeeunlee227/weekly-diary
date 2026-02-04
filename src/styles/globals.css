@@ -183,3 +183,34 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Hide floating bars when Statistics page is open */
+body:has([data-statistics-page="true"]) [class*="fixed"][class*="bottom-6"],
+body:has(.statistics-page-open) [class*="fixed"][class*="bottom-6"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  /* Better touch targets - minimum 44x44px */
+  button, a, input[type="checkbox"], input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent text selection on interactive elements */
+  button, .touch-manipulation {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* Smooth scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}

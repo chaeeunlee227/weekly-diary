@@ -11,6 +11,9 @@ import { MainEvents } from './components/MainEvents';
 import { GratefulThings } from './components/GratefulThings';
 import { CommentOfWeek } from './components/CommentOfWeek';
 import { Auth } from './components/Auth';
+import { StatisticsPage } from './components/StatisticsPage';
+import { WeekSummary } from './components/WeekSummary';
+import { PullToRefresh } from './components/PullToRefresh';
 import { auth, supabase } from './lib/supabase';
 import { getWeekData, saveWeekData } from './lib/weekDataApi';
 import { Button } from './components/ui/button';
@@ -86,6 +89,8 @@ export default function App() {
   const previousWeekKeyRef = useRef<string | null>(null);
   const previousWeekDataRef = useRef<WeekData | null>(null);
   const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>('sunday');
+  const [showWeekSummary, setShowWeekSummary] = useState(false);
+  const [showStatisticsPage, setShowStatisticsPage] = useState(false);
 
   const [visibleComponents, setVisibleComponents] = useState({
     habits: true,
@@ -350,6 +355,7 @@ export default function App() {
       setHasUnsavedChanges(false);
       setLastSaved(new Date());
       pendingSaveRef.current = null;
+      setShowWeekSummary(false);
     } catch (error) {
       console.error('Error saving week data:', error);
       alert('Failed to save data. Please try again.');
@@ -358,11 +364,38 @@ export default function App() {
     }
   };
 
+  // Handle save with summary preview
+  const handleSaveWithSummary = () => {
+    setShowWeekSummary(true);
+  };
+
+  // Refresh data
+  const handleRefresh = async () => {
+    if (!user) return;
+    const weekKey = getNormalizedWeekKey(currentWeek);
+    try {
+      const data = await getWeekData(user.id, weekKey);
+      const dataToSave = data ? JSON.parse(JSON.stringify(data)) : JSON.parse(JSON.stringify(INITIAL_WEEK_DATA));
+      setWeekData(prev => ({ ...prev, [weekKey]: dataToSave }));
+      setSavedData(prev => ({ ...prev, [weekKey]: JSON.parse(JSON.stringify(dataToSave)) }));
+      setHasUnsavedChanges(false);
+      if (data) {
+        setLastSaved(new Date());
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
+  };
+
   const toggleComponent = (component: keyof typeof visibleComponents) => {
     setVisibleComponents(prev => ({
       ...prev,
       [component]: !prev[component]
     }));
+  };
+
+  const getNormalizedWeekKeyString = (date: Date): string => {
+    return getNormalizedWeekKey(date);
   };
 
   // Show loading state
@@ -384,9 +417,11 @@ export default function App() {
   const data = getCurrentWeekData();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <>
+    <div className={`min-h-screen bg-gray-50 pb-24 ${showStatisticsPage ? 'statistics-page-open' : ''}`} style={{ overflow: showStatisticsPage ? 'hidden' : 'auto' }}>
       <div className="max-w-md mx-auto">
         {/* Header + Week Selector */}
+        {!showStatisticsPage && (
         <div className="bg-white border-b sticky top-0 z-10">
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -401,18 +436,18 @@ export default function App() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleSave}
-                  disabled={saving || !user}
+                  onClick={handleSaveWithSummary}
+                  disabled={saving || !user || !hasUnsavedChanges}
                   style={{
-                    backgroundColor: '#2563eb',
+                    backgroundColor: hasUnsavedChanges ? '#2563eb' : '#9ca3af',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '9999px',
                     padding: '0.375rem 0.75rem',
                     fontSize: '0.75rem',
                     fontWeight: '500',
-                    cursor: saving || !user ? 'not-allowed' : 'pointer',
-                    opacity: saving || !user ? 0.5 : 1,
+                    cursor: (saving || !user || !hasUnsavedChanges) ? 'not-allowed' : 'pointer',
+                    opacity: (saving || !user || !hasUnsavedChanges) ? 0.5 : 1,
                     minWidth: '60px',
                     height: '28px',
                     display: 'inline-flex',
@@ -420,12 +455,12 @@ export default function App() {
                     justifyContent: 'center'
                   }}
                   onMouseEnter={(e) => {
-                    if (!saving && user) {
+                    if (!saving && user && hasUnsavedChanges) {
                       e.currentTarget.style.backgroundColor = '#1d4ed8';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!saving && user) {
+                    if (!saving && user && hasUnsavedChanges) {
                       e.currentTarget.style.backgroundColor = '#2563eb';
                     }
                   }}
@@ -453,20 +488,32 @@ export default function App() {
           </div>
 
           {/* Settings (under header) */}
-          <div className="px-4 py-3 border-t">
+          <div className="px-4 py-3 border-t flex items-center justify-between">
             <ComponentToggle
               visibleComponents={visibleComponents}
               onToggle={toggleComponent}
               weekStartDay={weekStartDay}
               onWeekStartChange={handleWeekStartChange}
             />
+            <button
+              onClick={() => setShowStatisticsPage(true)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Statistics
+            </button>
           </div>
         </div>
+        )}
 
         {/* Main Content */}
-        <div className="py-4">
-          <div className="mx-auto max-w-md w-[calc(100%-2rem)] space-y-4">
-            {visibleComponents.habits && (
+        <div className="min-h-[calc(100vh-200px)]">
+          <PullToRefresh onRefresh={handleRefresh} disabled={!user || saving}>
+            <div className="py-4">
+            <div className="mx-auto max-w-md w-[calc(100%-2rem)] space-y-4">
+              {visibleComponents.habits && (
               <HabitTracker
                 data={data.habits}
                 weekStart={getWeekStart(currentWeek)}
@@ -515,14 +562,27 @@ export default function App() {
                 comment={data.comment}
                 onUpdate={(comment) => updateWeekData(d => ({ ...d, comment }))}
               />
-            )}
-          </div>
+                )}
+              </div>
+            </div>
+          </PullToRefresh>
         </div>
       </div>
 
-      {/* Floating Save Button */}
-      {hasUnsavedChanges && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] transition-all duration-300">
+      {/* Week Summary Modal */}
+      {showWeekSummary && (
+        <WeekSummary
+          weekData={getCurrentWeekData()}
+          weekStart={getWeekStart(currentWeek)}
+          weekStartDay={weekStartDay}
+          onClose={() => setShowWeekSummary(false)}
+          onSave={handleSave}
+        />
+      )}
+
+      {/* Floating Save Button - Only show when Statistics page is NOT open */}
+      {hasUnsavedChanges && !showStatisticsPage && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] transition-all duration-300" style={{ display: showStatisticsPage ? 'none' : 'block' }}>
           <div className="bg-white rounded-full shadow-lg border border-gray-200 px-4 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <div className="flex-shrink-0 w-2 h-2 bg-yellow-500 rounded-full"></div>
@@ -554,9 +614,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating Saved Indicator */}
-      {!hasUnsavedChanges && lastSaved && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] transition-all duration-300">
+      {/* Floating Saved Indicator - Only show when Statistics page is NOT open */}
+      {!hasUnsavedChanges && lastSaved && !showStatisticsPage && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] transition-all duration-300" style={{ display: showStatisticsPage ? 'none' : 'block' }}>
           <div className="bg-green-50 border border-green-200 rounded-full px-4 py-2.5 flex items-center justify-center gap-2 shadow-md">
             <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -568,5 +628,19 @@ export default function App() {
         </div>
       )}
     </div>
+
+    {/* Statistics Page - Rendered outside main container to ensure it's above everything */}
+    {showStatisticsPage && user && (
+      <StatisticsPage
+        userId={user.id}
+        currentWeekStart={getNormalizedWeekKeyString(currentWeek)}
+        weekData={getCurrentWeekData()}
+        weekStart={getWeekStart(currentWeek)}
+        weekStartDay={weekStartDay}
+        onClose={() => setShowStatisticsPage(false)}
+        onSave={handleSave}
+      />
+    )}
+    </>
   );
 }

@@ -77,3 +77,42 @@ export async function getAllWeekKeys(userId: string): Promise<string[]> {
 
   return data.map(row => row.week_start);
 }
+
+export async function getMultipleWeeksData(
+  userId: string,
+  weekStarts: string[]
+): Promise<Array<{ weekStart: string; data: WeekData }>> {
+  if (weekStarts.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('weekly_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .in('week_start', weekStarts)
+    .order('week_start', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching multiple weeks data:', error);
+    throw error;
+  }
+
+  return (data || []).map((row: any) => {
+    const events = (row.events as any) || [];
+    const eventsWithDates = events.map((event: any) => ({
+      ...event,
+      date: event.date ? new Date(event.date) : new Date()
+    }));
+
+    return {
+      weekStart: row.week_start,
+      data: {
+        habits: (row.habits as any) || { trackers: [], completed: {} },
+        moods: row.moods || [0, 0, 0, 0, 0, 0, 0],
+        meals: (row.meals as any) || {},
+        events: eventsWithDates,
+        grateful: row.grateful || '',
+        comment: row.comment || '',
+      }
+    };
+  });
+}
