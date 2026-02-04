@@ -435,12 +435,22 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
         </p>
       ) : (
         <div className="space-y-3">
-          <div className="flex gap-1 justify-end pr-16">
-            {DAYS.map(day => (
-              <div key={day} className="w-8 text-center text-xs text-gray-500">
-                {day}
-              </div>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="w-5 flex-shrink-0"></div>
+            <div className="flex-1"></div>
+            <div className="flex gap-1">
+              {DAYS.map(day => (
+                <div key={day} className="w-8 text-center text-xs text-gray-500">
+                  {day}
+                </div>
+              ))}
+            </div>
+            <div className="p-1 flex-shrink-0">
+              <div className="w-4 h-4"></div>
+            </div>
+            <div className="p-1 flex-shrink-0">
+              <div className="w-4 h-4"></div>
+            </div>
           </div>
 
           {data.trackers.map((tracker, index) => (
@@ -457,7 +467,7 @@ export function HabitTracker({ data, weekStart, onUpdate, userId }: HabitTracker
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               className={`
-                flex items-center gap-2 p-2 rounded-lg transition-all
+                flex items-center gap-2 py-1.5 rounded-lg transition-all
                 ${draggedIndex === index ? 'opacity-50 bg-blue-50' : ''}
                 ${dragOverIndex === index && draggedIndex !== index ? 'bg-blue-100 border-2 border-blue-300 border-dashed' : ''}
                 ${editingIndex !== index ? 'cursor-move' : ''}
